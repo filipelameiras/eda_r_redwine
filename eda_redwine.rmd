@@ -1,0 +1,573 @@
+---
+title: "Análise exploratória dos dados sobre vinhos tintos"
+author: "Filipe Silveira"
+output: html_document
+---
+========================================================
+
+**Dataset**: Este conjunto de dados contém 1.599 vinhos tintos com 11 variáveis de propriedades químicas do vinho. Ao menos 3 especialistas em vinhos avaliaram cada vinho, fornecendo uma nota entre 0 (muito ruim) e 10 (muito excelente). Mais informações serão encontradas [aqui.](https://s3.amazonaws.com/udacity-hosted-downloads/ud651/wineQualityInfo.txt).
+
+**Questão Guia**: Quais propriedades químicas influenciam a qualidade dos vinhos tintos?
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Carregue aqui todos os pacotes utilizados 
+# na sua análise realizada neste arquivo fonte.
+
+# Note que o parâmetro "echo" foi definido como FALSE neste código.
+# Isso previne que o código apresente resultados formatados em HTML.
+# Você deve definir echo=FALSE para todos os blocos de código no seu arquivo.
+
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(RColorBrewer)
+rw <- read.csv('wineQualityReds.csv')
+```
+# Estrutura dos dados
+### Dimensão do dataset
+```{r message=FALSE, warning=FALSE}
+dim(rw)
+```
+
+Contém 1599 registros com 13 variáveis
+
+### Quais são as variáveis?
+
+```{r message=FALSE, warning=FALSE}
+names(rw)
+```
+
+Descrição das variáveis:
+
+1. **Fixed acidity**: most wine acids involved are fixed or nonvolatile (do not evaporate readily)
+2. **Volatile acidity**: amount of acetic acid in wine - can be unpleasant, vinegary taste if too high? 
+3. **Citric acid**: found in small quantities, can add 'freshness' and flavor to wines
+4. **Residual sugar**: sugar remaining after fermentation stops, rare < 1 gram/liter, > 45 grams/liter are considered sweet
+5. **Chlorides**:  amount of salt in the wine
+6. **Free sulfur dioxide**: the free form of SO2 - prevents microbial growth and the oxidation of wine
+7. **Total sulfur dioxide**: free + bound forms of S02; in low concentrations, mostly undetectable in wine, free SO2 over 50 ppm, evident in the nose and taste of wine
+8. **Density**: the density of water is close to that of water (approx 1) depending on the percent alcohol and sugar content
+9. **pH**: acidic  on a scale from 0 (very acidic) to 14 (very basic); most wines are between 3-4 on the pH scale
+10. **Sulphates**: anadditive which can contribute to S02 levels,  acts as an antimicrobial and antioxidant.  
+11. **Alcohol**: the percent alcohol content of the wine
+12. **Quality (Output Variable)** - sensory score between 0 and 10
+
+
+### Tipos das variáveis.
+```{r}
+str(rw)
+```
+
+### Estatísticas Descritiva das variáveis
+```{r}
+summary(rw)
+```
+
+
+# Seção de Gráficos Univariados
+# Análise Univariada
+
+Vamos analisar a distribuição de cada variável, verificando se há alguma distribuição incomum ou se alguma variável precisa de alguma transformação ou limpeza.
+
+1. **Fixed Acidity:**
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=fixed.acidity), data=rw) + 
+  geom_histogram(binwidth = 0.5)
+```
+
+
+A distribuição tem um pequena cauda a direita. A relação da qualidade para esses valores acima de 14 não indica um aumento de qualidade, como mostra a tabela abaixo. Então esses valores serão considerados outliers e serão removidos.
+Tabela de qualidade: fixed.acidity >14
+```{r message=FALSE, warning=FALSE}
+table(rw$quality,rw$fixed.acidity >14)
+
+```
+```{r message=FALSE, warning=FALSE}
+rw_clean <- subset(rw,rw$fixed.acidity<=14)
+ggplot(aes(x=fixed.acidity), data=rw_clean) + 
+  geom_histogram(binwidth = 0.5)
+```
+
+
+Removendo os outliers, a distribuição é normal.
+
+2. **Volatile acidity**
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=volatile.acidity), data=rw_clean) + 
+  geom_histogram()
+```
+
+Aparentemete esta variável possui alguns outliers. Não terá influência na qualidade se esses outliers forem removidos.
+Tabela de Qualidade: volatile.acidity >1.2
+```{r}
+table(rw_clean$quality,rw_clean$volatile.acidity >1.2)
+```
+
+```{r message=FALSE, warning=FALSE}
+rw_clean <- subset(rw_clean, rw_clean$volatile.acidity <=1.2)
+ggplot(aes(x=volatile.acidity), data=rw_clean) + 
+  geom_histogram()
+```
+
+Agora a distribuição da variável é normal.
+
+
+3. **Citric Acid**
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=citric.acid), data=rw_clean) + 
+  geom_histogram()
+```
+Tabela de Qualidade: citric.acid == 0
+Existem 121 corrências para citric.acid == 0
+```{r}
+table(rw_clean$quality,rw_clean$citric.acid ==0)
+```
+
+
+Tabela de Qualidade: citric.acid > 0.75
+```{r}
+table(rw_clean$quality,rw_clean$citric.acid >0.75)
+```
+
+A melhor opção neste caso é remover os outliers > 0.75 que irá espalhar a distribuição.
+
+```{r message=FALSE, warning=FALSE}
+rw_clean <- subset(rw_clean, rw_clean$citric.acid <= 0.75)
+ggplot(aes(x=citric.acid), data=rw_clean) + 
+  geom_histogram()
+```
+
+
+4. **Residual Sugar**
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=residual.sugar), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela de Qualidade: residual.sugar > 7
+```{r}
+table(rw_clean$quality,rw_clean$residual.sugar > 7)
+```
+
+Estes outliers também serão removidos
+
+```{r message=FALSE, warning=FALSE}
+rw_clean <- subset(rw_clean, rw_clean$residual.sugar <= 7)
+ggplot(aes(x=residual.sugar), data=rw_clean) + 
+  geom_histogram()
+```
+
+Apesar da retirada dos outliers. Ainda existe uma cauda a direita na distribuição.
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x=residual.sugar), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_log10() + 
+  xlab("Residual Sugar (Scale log10)")
+
+p2 <- ggplot(aes(x=residual.sugar), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_sqrt() +
+  xlab("Residual Sugar (Scale sqrt)")
+grid.arrange(p1,p2, ncol=2)
+
+```
+
+Escalando esta variável na base logaritmica, melhora sua distribuição.
+```{r}
+rw_clean$residual.sugar.log <- log(rw_clean$residual.sugar)
+```
+
+
+5. **Chlorides**
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=chlorides), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela Qualidade: chlorides > 0.2
+```{r}
+table(rw_clean$quality,rw_clean$chlorides > 0.2)
+```
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x=chlorides), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_log10() + 
+  xlab("Residual Sugar (Scale log10)")
+
+p2 <- ggplot(aes(x=chlorides), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_sqrt() +
+  xlab("Residual Sugar (Scale sqrt)")
+grid.arrange(p1,p2, ncol=2)
+
+```
+
+Escalando para a base logaritmica, a distribuição fica mais normalizada
+
+```{r}
+rw_clean$chlorides.log <- log(rw_clean$chlorides)
+```
+
+
+6. **Free Sulfur Dioxide**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=free.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela Qualidade: chlorides > 0.2
+```{r}
+table(rw_clean$quality,rw_clean$free.sulfur.dioxide > 60)
+```
+
+Removendo outlier
+
+```{r}
+rw_clean <- subset(rw_clean, rw_clean$free.sulfur.dioxide <= 60)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x=free.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_log10() + 
+  xlab("Free Sulfur Dioxide (Scale log10)")
+
+p2 <- ggplot(aes(x=free.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_sqrt() +
+  xlab("Free Sulfur Dioxide (Scale sqrt)")
+grid.arrange(p1,p2, ncol=1)
+
+```
+
+Escalar na base logarítmica a variável para normalizar
+
+```{r}
+rw_clean$free.sulfur.dioxide.log <- log(rw_clean$free.sulfur.dioxide)
+```
+
+
+7. **Total sulfur dioxide**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=total.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela Qualidade: total.sulfur.dioxide > 0.2
+```{r}
+table(rw_clean$quality,rw_clean$total.sulfur.dioxide > 160)
+```
+
+Removendo outlier
+
+```{r}
+rw_clean <- subset(rw_clean, rw_clean$total.sulfur.dioxide <= 160)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x=total.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_log10() + 
+  xlab("Total Sulfur Dioxide (Scale log10)")
+
+p2 <- ggplot(aes(x=total.sulfur.dioxide), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_sqrt() +
+  xlab("Total Sulfur Dioxide (Scale sqrt)")
+grid.arrange(p1,p2, ncol=1)
+
+```
+
+Escalar na base logarítmica a variável para normalizar
+
+```{r}
+rw_clean$total.sulfur.dioxide.log <- log(rw_clean$total.sulfur.dioxide)
+```
+
+
+
+8. **Density**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=density), data=rw_clean) + 
+  geom_histogram()
+```
+
+
+Variável com distribuição normal
+
+
+9. **pH**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=pH), data=rw_clean) + 
+  geom_histogram()
+```
+
+Variável com distribuição normal
+
+
+10. **Sulphates**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=sulphates), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela Qualidade: sulphates > 1.5
+```{r}
+table(rw_clean$quality,rw_clean$sulphates > 1.5)
+```
+
+Removendo outlier. Eles tem baixo nivel de qualidade e pouco influenciarão de remove-los
+
+```{r}
+rw_clean <- subset(rw_clean, rw_clean$sulphates <= 1.5)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+p1 <- ggplot(aes(x=sulphates), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_log10() + 
+  xlab("sulphates (Scale log10)")
+
+p2 <- ggplot(aes(x=sulphates), data=rw_clean) + 
+  geom_histogram() +
+  scale_x_sqrt() +
+  xlab("sulphates (Scale sqrt)")
+grid.arrange(p1,p2, ncol=1)
+
+```
+
+Escalar na base logarítmica a variável para normalizar
+
+```{r}
+rw_clean$sulphates.log <- log(rw_clean$sulphates)
+```
+
+
+11. **Alcohol**
+
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol), data=rw_clean) + 
+  geom_histogram()
+```
+
+Tabela Qualidade: alcohol < 9
+```{r}
+table(rw_clean$quality,rw_clean$alcohol < 9)
+```
+
+Nenhuma mudanca nesta variável é significativa.
+
+
+12. **Quality**
+
+Variável chave do nosso dataset. Melhor não mudar.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(aes(x=quality), data=rw_clean) + 
+  geom_histogram()
+```
+
+
+# Seção de Gráficos Bivariados
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(GGally)
+ggpairs(rw_clean)
+```
+
+
+```{r}
+cor(rw_clean)
+```
+
+**0.3-0.5 = Correlção baixa**
+**0.5-0.7 = Correlção moderada**
+**0.7+ = Correlção alta**
+
+**Correlação da Qualidade com as demais variáveis**
+
+1. fixed.acidity: 0.12389357
+2. volatile.acidity: -0.382785120*
+3. citric.acid: 0.22848560
+4. residual.sugar: 0.03523646
+5. chlorides: -0.11541766 
+6. free.sulfur.dioxide: -0.050103084 
+7. total.sulfur.dioxide: -0.211970197
+8. density: -0.18391998
+9. pH: -0.05879047 
+10. sulphates: 0.308507858
+11. alcohol: 0.49206146*
+12. residual.sugar.log: 0.03640052
+13. chlorides.log: -0.16511563
+14. free.sulfur.dioxide.log: -0.05241825
+15. total.sulfur.dioxide.log: -0.18173507
+16. sulphates.log: 0.341392504*
+
+
+**Outras correlações que valem ser destacadas**
+```{r}
+r <- cor(rw_clean)
+r[r<=0.3 & r >= -0.3] <- ""
+r
+```
+
+
+**Conclusão**
+1. Variáveis que foram escaladas, vão ser usadas ao invés das variáveis originais, caso sua correlação for significante.
+2. A variável residual.sugar.log , será descartada da análise pois só tem uma correlação pequena com density. Deve ser ao fato que vinhos tintos não tendem a serem doces.
+3. A análise será iniciada pelas 3 variáveis que mais críicas em relação a qualidade: volatile.acidity, alcohol, sulphates.log
+
+
+# Seção de Gráficos Multivariados
+
+```{r echo=FALSE}
+ggplot(aes(x=quality,y=alcohol), data = rw_clean) +
+  geom_point() + 
+  stat_smooth(method = 'lm') 
+```
+
+A tendência do vinho ter maior qualidade quando o teor alcoólico aumenta.
+
+```{r echo=FALSE}
+
+ggplot(aes(x=quality,y=volatile.acidity), data = rw_clean) +
+  geom_point() + 
+  stat_smooth(method = 'lm') 
+```
+
+A tendência do vinho ter maior qualidade quando a acidez volátil diminui. 
+
+```{r echo=FALSE}
+
+ggplot(aes(x=quality,y=sulphates.log), data = rw_clean) +
+  geom_point() + 
+  stat_smooth(method = 'lm') 
+```
+
+Há um tendencia do vinho ser de melhor qualidade quando os sulfatos aumentam.
+
+Mas, em cada variável estudada acima, ainda há uma grande variância em relação a qualidade. Vamos tentar descobrir o por quê agora.
+
+
+
+```{r echo=FALSE}
+p1 <- ggplot(aes(x=sulphates.log,y=alcohol, colour=factor(quality)), data = rw_clean) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'Quality', reverse = T, override.aes = list(alpha = 1, size = 2))) 
+
+p2 <- ggplot(aes(x=volatile.acidity,y=alcohol, colour=factor(quality)), data = rw_clean) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'Quality', reverse = T, override.aes = list(alpha = 1, size = 2))) 
+p3 <- ggplot(aes(x=sulphates.log,y=volatile.acidity, colour=factor(quality)), data = rw_clean) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'Quality', reverse = T, override.aes = list(alpha = 1, size = 2))) 
+
+grid.arrange(p1,p2,p3)
+```
+
+Vimos nesses gráficos acima como tende a qualidade em relação a distribuição das ouras variáveis:
+ +alcool & +sulfatos = +qualidade
+ +alcool & - acidez volátil = +qualidade
+ +sulfatos & -acidez volátil = +qualidade
+
+
+
+```{r echo=FALSE}
+
+rw_clean$sulphates.log.cut <- cut(rw_clean$sulphates.log,c(-1.1087,-0.5578,-0.4780,-0.3147,0.3075))
+rw_clean$volatile.acidity.cut <- cut(rw_clean$volatile.acidity,c(0.1200,0.3900,0.5200,0.6400,1.1850))
+
+p1 <- ggplot(aes(x=quality,y=alcohol, color=factor(sulphates.log.cut)), data = rw_clean) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'sulphates.log', reverse = T, override.aes = list(alpha = 1, size = 2)))
+
+p2 <- ggplot(aes(x=quality,y=alcohol, color=factor(volatile.acidity.cut)), data = subset(rw_clean,!is.na(rw_clean$volatile.acidity.cut))) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'volatile.acidity', reverse = FALSE, override.aes = list(alpha = 1, size = 2)))
+
+grid.arrange(p1,p2)
+```
+
+Dividi os sulfatos e a acidez volátil que 4 grupos (min-Q1, Q1-Mediana, Mediana-Q3, Q3-Max), para ver como se comportam em relação a distribuição entre alcool x qualidade. Percebemos que quanto maior o teor alcoólico e a qualiade, maiores são os valores dos sulfatos e menores o da acidez volátil. 
+
+
+
+# Gráficos Finais e Sumário
+
+### Primeiro Gráfico
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(aes(x=quality), data=rw) + 
+  geom_histogram() + 
+  ggtitle("Histograma da Qualidade dos vinhos") + 
+  xlab("Qualidade(0 a 10)")
+
+```
+
+### Descrição do Primeiro Gráfico
+
+Gráfico indica a contagem da nota(Qualidade) dos 1599 vinhos contidos no dataset. Vimos que, apesar dos valores possíveis das notas serem de 0 a 10, nenhum deles possuiu notas abaixo de 3 ou acima de 8.
+
+### Segundo Gráfico
+```{r echo=FALSE, Plot_Two}
+
+ggplot(aes(x=quality,y=alcohol), data = rw_clean) +
+  geom_point() + 
+  stat_smooth(method = 'lm')+
+  ggtitle("Distribuição entre teor alcoólico X Qualidade") +
+  xlab("Qualidade") + 
+  ylab("Teor Alcoólico")
+
+```
+
+### Descrição do Segundo Gráfico
+
+Gráfico mostra a distribuição entre o teor alcoólico e qualidade. O gráfico também plota uma linha de tendência entre esses duas variáveis. Resumindo, Quando o teor alcoólico aumenta o vinho tende a ter melhor qualidade. Isso confirma uma hipótese que tinha que os vinhos com maior teor alcoólico tinha melhor qualidade.
+
+### Terceiro Gráfico
+```{r echo=FALSE, Plot_Three}
+
+ggplot(aes(x=sulphates.log,y=volatile.acidity, colour=factor(quality)), data = rw_clean) +
+  geom_point() + 
+  scale_color_brewer(type = 'div', guide = guide_legend(title = 'Qualidade(0 a 10)', reverse = T, override.aes = list(alpha = 1, size = 2))) +
+  ggtitle("Acidez Volátil X Sulfatos X Qualidade") + 
+  xlab("Sulfatos") + 
+  ylab("Acidez volátil")
+
+```
+
+### Descrição do Terceiro Gráfico
+
+Gráfico que mostra a distribuição da acidez volátil e Sulfatos em relação a Qualidade do vinho. Gráfico indica que quanto menor a acidez e maior q quantidade d esulfatos, o vinho tende ter uma melhor qualidade. Este gráfico veio complementar minha hipótese pessoal, que comentei no gráfico anterior. Obviamente, a qualidade do vinho não se faz só pelo teor alcoólico, mas esta análise me mostrou duas outros pontos que pode indicar uma qualidade melhor do vinho.
+
+------
+
+# Reflexão
+
+Um dos motivos que eu escolhi este dataset sobre vinhos, dentre vários outros, foi que virei um apreciador de vinho a pouco tempo. A principal motivação esclarecer uma hipótese que tinha sobre vinhos que era: Vinhos com teor alcoólico maior tendem a ser melhores. E esta análise sobre este dataset acabou confirmando a hipótese. 
+
+Minhas principais dificuldades inicialmente foram duas: 
+1. Conhecimento sob a linguagem R: Para fazer esta análise tive que pesquisar bastante no google e nos materiais do curso para conesguir fazer o que queria
+2. Por onde começar a EDA: inicialmente, fiquei perdido, não sabia dar um ponto de partida. Mas acabei seguindo a linha de raciocínio da EDA sobre o dataset dos diamantes feito por uma pessoa do facebook, da aula 9 e acabei conseguindo realizar esta minha EDA.
+
